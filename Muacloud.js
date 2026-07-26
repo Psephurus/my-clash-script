@@ -1,6 +1,13 @@
 function main(config) {
   const names = config.proxies.map(p => p.name);
 
+
+  // 删除代理组中名称含 ":" 或 "：" 的节点
+  config["proxy-groups"].forEach(group => {
+    group.proxies = group.proxies?.filter(p => !/[：:]/.test(p));
+  });
+
+
   // 新建代理组规则
   // AI台湾
   const aiTwNodes = names.filter(
@@ -21,6 +28,7 @@ function main(config) {
   const hkNodes = names.filter(
     n => /香港/i.test(n)
   );
+
 
   // 插入代理组规则
   // AI台湾
@@ -73,6 +81,7 @@ function main(config) {
     proxies: hkNodes.length ? hkNodes : ["DIRECT"]
   });
 
+  
   // 规则置顶
   config.rules.unshift(
     "GEOSITE,youtube,Youtube",
