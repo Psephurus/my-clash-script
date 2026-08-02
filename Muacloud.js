@@ -1,96 +1,132 @@
 function main(config) {
-  const names = config.proxies.map(p => p.name);
 
+  // =========================
+  // 清理节点
+  // =========================
 
-  // 删除代理组中名称含 ":" 或 "：" 的节点
-  config["proxy-groups"].forEach(group => {
-    group.proxies = group.proxies?.filter(p => !/[：:]/.test(p));
-  });
+  if (!config.proxies) return config;
 
-
-  // 新建代理组规则
-  // AI台湾
-  const aiTwNodes = names.filter(
-    n => /(?=.*(AI|GPT|都))(?=.*(台湾|TW))/i.test(n)
+  // 删除名称含 ":" 或 "：" 的节点
+  config.proxies = config.proxies.filter(
+    p => !/[：:]/.test(p.name)
   );
 
-  // 台湾流媒体
-  const streamTwNodes = names.filter(
-    n => /(?=.*流媒体)(?=.*台湾)/i.test(n)
-  );
-
-  // 香港流媒体
-  const streamHkNodes = names.filter(
-    n => /(?=.*流媒体)(?=.*香港)/i.test(n)
-  );
-
-  // 香港节点
-  const hkNodes = names.filter(
-    n => /香港/i.test(n)
+  const names = config.proxies.map(
+    p => p.name
   );
 
 
-  // 插入代理组规则
-  // AI台湾
-  config["proxy-groups"].push({
-    name: "AI台湾",
-    type: "url-test",
-    url: "http://www.gstatic.com/generate_204",
-    interval: 300,
-    proxies: aiTwNodes.length ? aiTwNodes : ["DIRECT"]
-  });
+  // =========================
+  // 创建地区节点列表
+  // =========================
 
-  // 台湾流媒体
-  config["proxy-groups"].push({
-    name: "台湾流媒体",
-    type: "url-test",
-    url: "http://www.gstatic.com/generate_204",
-    interval: 300,
-    proxies: streamTwNodes.length ? streamTwNodes : ["DIRECT"]
-  });
+  const regions = {
+    "香港节点": /(香港|hk|hong\s*kong)/i,
+    "台湾节点": /(台湾|Taiwan|TW\d*)/i,
+    "新加坡节点": /(新加坡|sg|singapore)/i,
+    "日本节点": /(日本|jp|japan)/i,
+    "韩国节点": /(韩国|kr|korea)/i,
+    "美国节点": /(美国|us|usa|united\s*states|america)/i
+  };
 
-  // 香港流媒体
-  config["proxy-groups"].push({
-    name: "香港流媒体",
-    type: "url-test",
-    url: "http://www.gstatic.com/generate_204",
-    interval: 300,
-    proxies: streamHkNodes.length ? streamHkNodes : ["DIRECT"]
-  });
 
-  // Youtube
-  config["proxy-groups"].push({
-    name: "Youtube",
-    type: "select",
-    proxies: ["香港节点", "自动选择"]
-  });
+  const regionNodes = {};
 
-  // 巴哈姆特
-  config["proxy-groups"].push({
-    name: "巴哈姆特",
-    type: "select",
-    proxies: ["台湾流媒体", "香港流媒体", "自动选择"]
-  });
+  for (const [region, regex] of Object.entries(regions)) {
+    regionNodes[region] = names.filter(
+      n => regex.test(n)
+    );
+  }
 
-  // 香港节点
-  config["proxy-groups"].push({
-    name: "香港节点",
-    type: "url-test",
-    url: "http://www.gstatic.com/generate_204",
-    interval: 300,
-    proxies: hkNodes.length ? hkNodes : ["DIRECT"]
-  });
 
-  
+  // =========================
+  // 清理原代理组
+  // =========================
+
+  if (config["proxy-groups"]) {
+
+    config["proxy-groups"].forEach(group => {
+
+      if (group.proxies) {
+        group.proxies = group.proxies.filter(
+          p => !/[：:]/.test(p)
+        );
+      }
+
+    });
+
+  } else {
+
+    config["proxy-groups"] = [];
+
+  }
+
+
+  const groups = config["proxy-groups"];
+
+
+  // =========================
+  // 手动选择组
+  // =========================
+
+  groups.push(
+    {
+      name: "Youtube",
+      type: "select",
+      proxies: [
+        "香港节点",
+        "台湾节点",
+        "日本节点",
+        "美国节点",
+        "新加坡节点",
+        "韩国节点",
+        "自动选择"
+      ]
+    },
+
+    {
+      name: "巴哈姆特",
+      type: "select",
+      proxies: [
+        "台湾节点",
+        "香港节点",
+        "自动选择"
+      ]
+    }
+  );
+
+
+  // =========================
+  // 自动选择地区节点
+  // =========================
+
+  for (const [region, nodes] of Object.entries(regionNodes)) {
+
+    groups.push({
+      name: region,
+      type: "url-test",
+      url: "https://www.gstatic.com/generate_204",
+      interval: 300,
+      tolerance: 50,
+      proxies: nodes.length ? nodes : ["DIRECT"]
+    });
+
+  }
+
+
+  // =========================
   // 规则置顶
+  // =========================
+
+  config.rules = config.rules || [];
+
   config.rules.unshift(
     "GEOSITE,youtube,Youtube",
-    "GEOSITE,category-ai-!cn,AI台湾",
-    "GEOSITE,category-cryptocurrency,AI台湾",
     "GEOSITE,bahamut,巴哈姆特",
-    "GEOSITE,category-finance,AI台湾",
-    "GEOSITE,category-netdisk-!cn,自动选择"
+    "GEOSITE,category-ai-!cn,台湾节点",
+    "GEOSITE,category-cryptocurrency,台湾节点"
   );
+
 
   return config;
 }
