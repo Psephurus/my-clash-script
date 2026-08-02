@@ -33,9 +33,15 @@ function main(config) {
   const regionNodes = {};
 
   for (const [region, regex] of Object.entries(regions)) {
-    regionNodes[region] = names.filter(
+
+    const nodes = names.filter(
       n => regex.test(n)
     );
+
+    if (nodes.length) {
+      regionNodes[region] = nodes;
+    }
+
   }
 
 
@@ -43,57 +49,61 @@ function main(config) {
   // 清理原代理组
   // =========================
 
-  if (config["proxy-groups"]) {
-
-    config["proxy-groups"].forEach(group => {
-
-      if (group.proxies) {
-        group.proxies = group.proxies.filter(
-          p => !/[：:]/.test(p)
-        );
-      }
-
-    });
-
-  } else {
-
-    config["proxy-groups"] = [];
-
-  }
-
-
+  config["proxy-groups"] = config["proxy-groups"] || [];
   const groups = config["proxy-groups"];
+
+  groups.forEach(group => {
+    if (group.proxies) {
+      group.proxies = group.proxies.filter(
+        p => !/[：:]/.test(p)
+      );
+    }
+  });
 
 
   // =========================
   // 手动选择组
   // =========================
 
-  groups.push(
-    {
-      name: "Youtube",
-      type: "select",
-      proxies: [
-        "香港节点",
-        "台湾节点",
-        "日本节点",
-        "美国节点",
-        "新加坡节点",
-        "韩国节点",
-        "自动选择"
-      ]
-    },
+  const serviceGroups = {
 
-    {
-      name: "巴哈姆特",
+    "Youtube": [
+      "自动选择",
+      "香港节点",
+      "新加坡节点",
+      "台湾节点",
+      "日本节点",
+      "美国节点",
+      "韩国节点"
+    ],
+
+    "巴哈姆特": [
+      "台湾节点",
+      "香港节点",
+      "自动选择"
+    ],
+
+    "人工智能": [
+      "台湾节点",
+      "美国节点",
+      "自动选择"
+    ],
+
+    "数字货币": [
+      "台湾节点",
+      "自动选择"
+    ]
+
+  };
+
+
+  for (const [name, proxies] of Object.entries(serviceGroups)) {
+    groups.push({
+      name,
       type: "select",
-      proxies: [
-        "台湾节点",
-        "香港节点",
-        "自动选择"
-      ]
-    }
-  );
+      proxies
+    });
+  }
 
 
   // =========================
@@ -101,16 +111,14 @@ function main(config) {
   // =========================
 
   for (const [region, nodes] of Object.entries(regionNodes)) {
-
     groups.push({
       name: region,
       type: "url-test",
       url: "https://www.gstatic.com/generate_204",
       interval: 300,
       tolerance: 50,
-      proxies: nodes.length ? nodes : ["DIRECT"]
+      proxies: nodes
     });
-
   }
 
 
@@ -119,14 +127,23 @@ function main(config) {
   // =========================
 
   config.rules = config.rules || [];
-
-  config.rules.unshift(
+  const rules = [
     "GEOSITE,youtube,Youtube",
     "GEOSITE,bahamut,巴哈姆特",
-    "GEOSITE,category-ai-!cn,台湾节点",
-    "GEOSITE,category-cryptocurrency,台湾节点"
-  );
+    "GEOSITE,category-ai-!cn,人工智能",
+    "GEOSITE,category-cryptocurrency,数字货币"
+  ];
 
+
+  config.rules = [
+
+    ...rules.filter(
+      r => !config.rules.includes(r)
+    ),
+
+    ...config.rules
+
+  ];
 
   return config;
 }
