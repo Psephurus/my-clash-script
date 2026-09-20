@@ -60,6 +60,34 @@ function main(config) {
     }
   });
 
+  // =========================
+  // 默认置顶代理组加入地区代理组
+  // =========================
+
+  const defaultGroup = groups[0];
+
+  if (defaultGroup && defaultGroup.proxies) {
+
+    const regionGroups = Object.keys(regionNodes);
+
+    const oldProxies = defaultGroup.proxies.filter(
+      p => !regionGroups.includes(p)
+    );
+
+    const index = oldProxies.indexOf("自动选择");
+
+    if (index >= 0) {
+      oldProxies.splice(
+        index + 1,
+        0,
+        ...regionGroups
+      );
+    } else {
+      oldProxies.unshift(...regionGroups);
+    }
+
+    defaultGroup.proxies = oldProxies;
+  }
 
   // =========================
   // 手动选择组
